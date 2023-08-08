@@ -2,11 +2,13 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
-const authMiddleware = require('./middleware/authMiddleware'); // Path to your authMiddleware
+const authMiddleware = require('./authMiddleware'); // Path to your authMiddleware
+const jwt = require('jsonwebtoken'); // Import the jsonwebtoken library
 
 const app = express();
-const PORT = process.ENV.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
+const prisma = new PrismaClient(); // Initialize PrismaClient instance
 app.use(express.json());
 
 app.post('/register', async (req, res)=> {
@@ -26,24 +28,28 @@ app.post('/register', async (req, res)=> {
         console.log(error);
         res.status(500).json({message: 'Error registering user'});
     }
-})
+});
 
 app.post('/login', async (req, res) => {
-    const {username, password} = req.body;
+    const { username, password } = req.body;
 
     try {
-        const user = await prisma.user.findUnique({where: {username} });
-        if (!user){
-            return res.status(404).json({message: "User not found!"});
+        const user = await prisma.user.findUnique({ where: { username } });
+        if (!user) {
+            return res.status(404).json({ message: "User not found!" });
         }
 
         const passwordMatch = await bcrypt.compare(password, user.password);
 
-        if (!passwordMatch){
-            res.status(401).json({message: 'Invalid password'});
+        if (!passwordMatch) {
+            return res.status(401).json({ message: 'Invalid password' });
         }
 
-        res.json({message : 'Login successful'});
+        // Create a JWT token
+        const token = jwt.sign({ username: user.username }, process.env.JWT_SECRET);
+
+        // Return the JWT token as a response
+        res.json({ message: 'Login successful', token });
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: 'Error logging in' });
@@ -51,9 +57,12 @@ app.post('/login', async (req, res) => {
 });
 
 app.get('/profile', authMiddleware, (req, res) => {
-    const { username } = req.user;
+    console.log('Authenticated user:', req.user); // Logging the authenticated user information
+    console.log('Decoded token data:', req.decodedToken); // Logging the decoded token data
+
+    const username = req.user;
     res.json({ message: `Welcome to your profile, ${username}!` });
-  });
+});
 
 // Start the server
 app.listen(PORT, () => {

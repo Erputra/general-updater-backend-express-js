@@ -9,12 +9,14 @@ const authMiddleware = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.userId;
-        req.user = decoded.userId;
+        console.log(decoded);
+        req.user = decoded.username; // Assign the username to req.user
+        req.decodedToken = decoded; // You can also store the entire decoded token if needed
         next();
     } catch (error) {
+        console.log(error);
         res.status(401).json({ error: 'Token is not valid'});
     }
 };
 
-module.exports = authMiddleware;S
+module.exports = authMiddleware;
